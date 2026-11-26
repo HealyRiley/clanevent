@@ -23,6 +23,9 @@
   .tile.next { outline: 3px dashed #e0b54a; }
   .tile:enabled:hover, .tile:enabled:focus-visible { outline: 3px solid #e0b54a; }
   #status { text-align: center; color: #ffb4a8; min-height: 1.4em; margin: -16px 0 16px; }
+  #login, #logout-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin: 0 0 24px; }
+  #login input { background: #181b18; color: #eee; border: 1px solid #555; border-radius: 6px; padding: 7px 10px; font-size: 16px; }
+  #login button, #logout { background: #222622; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
   [hidden] { display: none !important; }
   .tile svg { display: none; width: 100%; height: 100%; }
   .tile.crossed svg { display: block; }
@@ -31,6 +34,12 @@
 <body>
 <h1>Tile Rush</h1>
 <p class="intro" id="intro">Loading…</p>
+<form id="login">
+  <label for="password">Admin password</label>
+  <input id="password" type="password" autocomplete="current-password" required>
+  <button type="submit">Log in</button>
+</form>
+<div id="logout-row" hidden><button type="button" id="logout">Log out of admin</button></div>
 <p id="status" role="status"></p>
 <main id="teams"></main>
 <script src="script.js"></script>

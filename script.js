@@ -2,8 +2,11 @@ const TEAMS = ['Team 1', 'Team 2', 'Team 3', 'Team 4', 'Team 5'];
 const REFRESH_MS = 15000;
 const X = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M15 15 85 85M85 15 15 85" stroke="#e11d1d" stroke-width="11" stroke-linecap="round"/></svg>';
 
-// The admin link looks like https://your-site/#admin=YOUR_KEY
+// Admins can use the password box, or a link like https://your-site/#admin=YOUR_KEY
+// A password typed into the box is remembered only until this browser tab is closed
+const SESSION_KEY = 'tile-rush-admin';
 let adminKey = new URLSearchParams(location.hash.slice(1)).get('admin');
+try { adminKey = adminKey || sessionStorage.getItem(SESSION_KEY); } catch (e) {}
 let isAdmin = false; // only true once the server accepts the key
 let loaded = false;
 let busy = false;
@@ -12,12 +15,24 @@ let progress = TEAMS.map(() => '0'.repeat(36));
 
 const statusEl = document.getElementById('status');
 const boards = [];
+const loginForm = document.getElementById('login');
+const passwordInput = document.getElementById('password');
+
+function forgetAdmin() {
+  adminKey = null;
+  isAdmin = false;
+  try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+  // Also remove the key from the address if an admin link was used
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+}
 
 function render() {
   document.body.classList.toggle('admin', isAdmin);
   document.getElementById('intro').textContent = isAdmin
     ? 'Admin mode: click the next tile to cross it off. Click a red X to remove it.'
     : "Follow each team's progress. This page updates automatically.";
+  loginForm.hidden = isAdmin;
+  document.getElementById('logout-row').hidden = !isAdmin;
 
   boards.forEach(({ tiles, count, reset }, t) => {
     const state = progress[t];
@@ -37,9 +52,9 @@ function render() {
   });
 }
 
-async function request(body) {
+async function request(body, key = adminKey) {
   const options = { headers: {} };
-  if (adminKey) options.headers.Authorization = 'Bearer ' + adminKey;
+  if (key) options.headers.Authorization = 'Bearer ' + key;
   if (body) {
     options.method = 'POST';
     options.headers['Content-Type'] = 'application/json';
@@ -57,10 +72,10 @@ async function refresh() {
     const { response, data } = await request();
     if (startedAt !== version) return;
     if (response.status === 401) {
-      adminKey = null;
-      isAdmin = false;
+      forgetAdmin();
       await refresh();
-      statusEl.textContent = 'That admin link is not valid, so this page is view only.';
+      statusEl.dataset.type = 'login';
+      statusEl.textContent = 'The admin password is not valid, so this page is view only.';
       return;
     }
     if (!response.ok) throw new Error(data.error);
@@ -84,7 +99,7 @@ async function change(body) {
   try {
     const { response, data } = await request(body);
     if (data.teams) progress = data.teams;
-    if (response.status === 401) isAdmin = false;
+    if (response.status === 401) forgetAdmin();
     if (!response.ok) throw new Error(data.error);
     statusEl.textContent = '';
   } catch (error) {
@@ -128,6 +143,43 @@ TEAMS.forEach((name, t) => {
   });
   boards.push({ tiles, count: section.querySelector('.count'), reset });
   document.getElementById('teams').appendChild(section);
+});
+
+loginForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = loginForm.querySelector('button');
+  button.disabled = true;
+  statusEl.dataset.type = 'login';
+  statusEl.textContent = 'Checking password…';
+  try {
+    const { response, data } = await request(null, passwordInput.value);
+    if (response.status === 401) {
+      statusEl.textContent = 'Incorrect password.';
+    } else if (!response.ok) {
+      throw new Error(data.error);
+    } else {
+      version++;
+      adminKey = passwordInput.value;
+      try { sessionStorage.setItem(SESSION_KEY, adminKey); } catch (e) {}
+      isAdmin = true;
+      loaded = true;
+      progress = data.teams;
+      passwordInput.value = '';
+      statusEl.textContent = '';
+      render();
+    }
+  } catch (error) {
+    statusEl.textContent = "Couldn't log in. Check your connection and try again.";
+  }
+  button.disabled = false;
+});
+
+document.getElementById('logout').addEventListener('click', () => {
+  version++;
+  forgetAdmin();
+  statusEl.textContent = '';
+  render();
+  refresh();
 });
 
 render();
