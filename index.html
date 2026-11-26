@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tile Rush</title>
+<style>
+  body { margin: 0; padding: 24px 16px; background: #0f110f; color: #eee; font-family: system-ui, sans-serif; }
+  h1 { text-align: center; color: #e0b54a; margin: 0 0 4px; }
+  .intro { text-align: center; color: #aaa; margin: 0 0 24px; }
+  main { display: flex; flex-wrap: wrap; justify-content: center; gap: 32px; }
+  section { width: 100%; max-width: 657px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  h2 { margin: 0; font-size: 1.3rem; }
+  .count { color: #aaa; font-size: .9rem; margin-left: auto; margin-right: 12px; }
+  .reset { background: #222622; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .board { position: relative; }
+  .board img { display: block; width: 100%; height: auto; }
+  /* Positions are percentages of the 657px board image, so they scale with it */
+  .tile { position: absolute; width: 15.07%; height: 15.07%; padding: 0; background: none; border: 0; border-radius: 6px; cursor: pointer; }
+  .tile:hover, .tile:focus-visible { outline: 2px solid #e0b54a; }
+  .tile svg { display: none; width: 100%; height: 100%; }
+  .tile[aria-pressed="true"] svg { display: block; }
+</style>
+</head>
+<body>
+<h1>Tile Rush</h1>
+<p class="intro">Click a tile to cross it off. Click it again to undo.</p>
+<main id="teams"></main>
+<script src="script.js"></script>
+</body>
+</html>
