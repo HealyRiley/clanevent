@@ -1,5 +1,5 @@
 // Shared Tile Rush progress, stored in Redis (Upstash) through its REST API.
-// Anyone can read. Changing tiles needs the ADMIN_KEY environment variable.
+// Anyone can read. Changes need the admin password: ADMIN_KEY, or the one set on the website.
 const crypto = require('crypto');
 
 const HASH = 'tile-rush:progress'; // one 36-character string of 0s and 1s per team
@@ -70,12 +70,24 @@ async function readAll() {
   return { teams, players };
 }
 
-function isAdmin(req) {
-  const expected = process.env.ADMIN_KEY;
-  const given = (req.headers.authorization || '').replace(/^Bearer /, '');
-  if (!expected || !given) return false;
+function matches(given, expected) {
   const hash = (v) => crypto.createHash('sha256').update(v).digest();
   return crypto.timingSafeEqual(hash(given), hash(expected));
+}
+
+// A password changed on the website is stored only as a salted hash, never as plain text
+const AUTH_KEY = 'tile-rush:admin-password';
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  return salt + ':' + crypto.scryptSync(password, salt, 32).toString('hex');
+}
+
+// Once the password has been changed on the website, that one replaces ADMIN_KEY
+async function isAdmin(req) {
+  const given = (req.headers.authorization || '').replace(/^Bearer /, '');
+  if (!given) return false;
+  const stored = await redis('GET', AUTH_KEY);
+  if (stored) return matches(hashPassword(given, stored.split(':')[0]), stored);
+  return Boolean(process.env.ADMIN_KEY) && matches(given, process.env.ADMIN_KEY);
 }
 
 module.exports = async (req, res) => {
@@ -85,7 +97,7 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
       // A request carrying a key is checked, so the page knows whether to unlock editing
       if (req.headers.authorization) {
-        if (!isAdmin(req)) return send(401, { error: 'That admin link is not valid.' });
+        if (!(await isAdmin(req))) return send(401, { error: 'That admin link is not valid.' });
       } else {
         // Lets Vercel share one answer between viewers for 5 seconds, saving database usage
         res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=5');
@@ -94,7 +106,7 @@ module.exports = async (req, res) => {
     }
 
     if (req.method !== 'POST') return send(405, { error: 'Method not allowed.' });
-    if (!isAdmin(req)) return send(401, { error: 'That admin link is not valid.' });
+    if (!(await isAdmin(req))) return send(401, { error: 'That admin link is not valid.' });
 
     const { team, tile, crossed, reset, player, name, captain, title } = req.body || {};
     if (!Number.isInteger(team) || team < 0 || team > 4) return send(400, { error: 'Unknown team.' });
@@ -136,3 +148,6 @@ module.exports = async (req, res) => {
 // Shared with api/rules.js
 module.exports.redis = redis;
 module.exports.isAdmin = isAdmin;
+module.exports.matches = matches;
+module.exports.hashPassword = hashPassword;
+module.exports.AUTH_KEY = AUTH_KEY;

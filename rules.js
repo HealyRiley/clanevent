@@ -51,7 +51,7 @@ Requires 2 unique submissions from different categories of players to complete.`
 
 36. Obtain a megarare from any raid (no kodai/maul included)` },
   ] },
-  { heading: 'General Rules', sections: [
+  { heading: 'General Rules', oneBox: true, sections: [
     { id: 'general', title: '', text: `* All clan rules must be followed
 * You may only participate on 1 account at any given time, irons are eligible to to swap to mains
 * Alting is not permitted at all` },
@@ -114,7 +114,7 @@ async function request(body) {
 }
 
 function buildSection(section) {
-  const el = make('section');
+  const el = make('div', 'part');
   const top = el.appendChild(make('div', 'section-top'));
   if (section.title) top.appendChild(make('h2', '', section.title));
   const editButton = top.appendChild(make('button', '', 'Edit'));
@@ -171,7 +171,12 @@ function buildSection(section) {
 const main = document.getElementById('rules');
 GROUPS.forEach((group) => {
   main.appendChild(make('h1', '', group.heading));
-  group.sections.forEach((section) => main.appendChild(buildSection(section)));
+  // Each part normally gets its own box, unless the group shares one
+  const shared = group.oneBox ? main.appendChild(make('section')) : null;
+  group.sections.forEach((section) => {
+    const box = shared || main.appendChild(make('section'));
+    box.appendChild(buildSection(section));
+  });
 });
 main.hidden = true;
 

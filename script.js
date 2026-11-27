@@ -24,6 +24,17 @@ const teamName = (t) => players[t].title || TEAMS[t];
 const loginForm = document.getElementById('login');
 const passwordInput = document.getElementById('password');
 
+const passwordForm = document.getElementById('password-form');
+const passwordToggle = document.getElementById('password-toggle');
+const passwordStatus = document.getElementById('password-status');
+
+function closePasswordForm() {
+  passwordForm.reset();
+  passwordForm.hidden = true;
+  passwordStatus.textContent = '';
+  passwordToggle.setAttribute('aria-expanded', 'false');
+}
+
 function forgetAdmin() {
   adminKey = null;
   isAdmin = false;
@@ -38,6 +49,8 @@ function render() {
     ? 'Admin mode: click the next tile to cross it off, or click a red X to remove it. Type player names, and right-click a name to make that player captain.'
     : "Follow each team's progress. This page updates automatically.";
   loginForm.hidden = isAdmin;
+  document.getElementById('password-area').hidden = !isAdmin;
+  if (!isAdmin) closePasswordForm();
   document.getElementById('logout-row').hidden = !isAdmin;
 
   boards.forEach(({ heading, titleInput, tiles, inputs, count, reset }, t) => {
@@ -280,6 +293,50 @@ document.getElementById('logout').addEventListener('click', () => {
   statusEl.textContent = '';
   render();
   refresh();
+});
+
+passwordToggle.addEventListener('click', () => {
+  if (!passwordForm.hidden) return closePasswordForm();
+  passwordForm.hidden = false;
+  passwordToggle.setAttribute('aria-expanded', 'true');
+});
+
+passwordForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const { owner, next, confirm: again } = passwordForm.elements;
+  const say = (text, ok) => {
+    passwordStatus.textContent = text;
+    passwordStatus.classList.toggle('ok', Boolean(ok));
+  };
+  if (next.value !== again.value) return say("The new passwords don't match.");
+
+  const button = passwordForm.querySelector('button');
+  button.disabled = true;
+  say('Saving…');
+  const newPassword = next.value;
+  // Pause refreshing so the old password isn't rejected halfway through the change
+  pending++;
+  version++;
+  try {
+    await queue; // let any other saves finish with the old password
+    const response = await fetch('/api/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ownerPassword: owner.value, newPassword }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error);
+    adminKey = newPassword;
+    try { sessionStorage.setItem(SESSION_KEY, newPassword); } catch (e) {}
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+    passwordForm.reset();
+    say('Password changed. Give your admins the new one.', true);
+  } catch (error) {
+    say('Not changed. ' + (error.message || 'Check your connection and try again.'));
+  }
+  pending--;
+  version++;
+  button.disabled = false;
 });
 
 render();

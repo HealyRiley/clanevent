@@ -1,4 +1,4 @@
-// Saved edits to the rules page. Anyone can read; saving needs the ADMIN_KEY.
+// Saved edits to the rules page. Anyone can read; saving needs the admin password.
 const { redis, isAdmin } = require('./progress.js');
 
 const HASH = 'tile-rush:rules'; // one field per edited section
@@ -17,14 +17,14 @@ module.exports = async (req, res) => {
   try {
     if (req.method === 'GET') {
       if (req.headers.authorization) {
-        if (!isAdmin(req)) return send(401, { error: 'The admin password is not valid.' });
+        if (!(await isAdmin(req))) return send(401, { error: 'The admin password is not valid.' });
       } else {
         res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=5');
       }
       return send(200, { rules: await readRules() });
     }
     if (req.method !== 'POST') return send(405, { error: 'Method not allowed.' });
-    if (!isAdmin(req)) return send(401, { error: 'The admin password is not valid.' });
+    if (!(await isAdmin(req))) return send(401, { error: 'The admin password is not valid.' });
 
     const { id, text } = req.body || {};
     if (!SECTIONS.includes(id) || typeof text !== 'string' || !text.trim() || text.length > 5000) {
