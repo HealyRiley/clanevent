@@ -51,11 +51,13 @@ Requires 2 unique submissions from different categories of players to complete.`
 
 36. Obtain a megarare from any raid (no kodai/maul included)` },
   ] },
-  { heading: '', oneBox: true, sections: [
-    { id: 'general', title: 'General Rules', text: `* All clan rules must be followed
+  { heading: '', sections: [
+    // "parts" are the two lists this used to be, so edits saved to either one still show
+    { id: 'allgeneral', title: 'General Rules', parts: [
+      { id: 'general', text: `* All clan rules must be followed
 * You may only participate on 1 account at any given time, irons are eligible to to swap to mains
 * Alting is not permitted at all` },
-    { id: 'event', title: 'Event Rules', text: `* All teams must complete the board tile by tile in order starting from tile 1 ending at tile 36
+      { id: 'event', text: `* All teams must complete the board tile by tile in order starting from tile 1 ending at tile 36
 * You cannot progress to the next tile until you complete your current one
 * The winner of the event is determined by either the first team to complete the board or the team that has progressed the furthest through the board the quickest
 * Tile completions will be determined by submission time and not the time the tile is completed in game, make sure to submit your tiles asap before proceeding to the next tile.
@@ -67,8 +69,16 @@ Requires 2 unique submissions from different categories of players to complete.`
 * Tiles that require multiple items will by default require different items, dupes do not count
 * In the event a submission is denied @Wdr will notify your team of same, all progress on the board is to halt until the denied submission is recompleted.
 * All submissions should come from the boss variant if there is one` },
+    ] },
   ] },
 ];
+
+// The text to show for a section: the latest saved edit, otherwise the original
+function currentText(section, saved) {
+  if (saved[section.id]) return saved[section.id];
+  if (section.parts) return section.parts.map((part) => saved[part.id] || part.text).join('\n');
+  return section.text;
+}
 
 // Same key the main page remembers after an admin logs in
 const SESSION_KEY = 'tile-rush-admin';
@@ -114,7 +124,7 @@ async function request(body) {
 }
 
 function buildSection(section) {
-  const el = make('div', 'part');
+  const el = make('section');
   const top = el.appendChild(make('div', 'section-top'));
   if (section.title) top.appendChild(make('h2', '', section.title));
   const editButton = top.appendChild(make('button', '', 'Edit'));
@@ -129,7 +139,7 @@ function buildSection(section) {
   const cancelButton = actions.appendChild(make('button', '', 'Cancel'));
   editButton.type = saveButton.type = cancelButton.type = 'button';
 
-  const view = { section, text: section.text, editing: false, area };
+  const view = { section, text: currentText(section, {}), editing: false, area };
   view.render = () => {
     showText(textBox, view.text);
     textBox.hidden = view.editing;
@@ -152,7 +162,7 @@ function buildSection(section) {
     try {
       const { response, data } = await request({ id: section.id, text: area.value });
       if (!response.ok) throw new Error(data.error);
-      view.text = data.rules[section.id] || section.text;
+      view.text = currentText(section, data.rules);
       view.editing = false;
       statusEl.textContent = '';
       view.render();
@@ -171,12 +181,7 @@ function buildSection(section) {
 const main = document.getElementById('rules');
 GROUPS.forEach((group) => {
   if (group.heading) main.appendChild(make('h1', '', group.heading));
-  // Each part normally gets its own box, unless the group shares one
-  const shared = group.oneBox ? main.appendChild(make('section')) : null;
-  group.sections.forEach((section) => {
-    const box = shared || main.appendChild(make('section'));
-    box.appendChild(buildSection(section));
-  });
+  group.sections.forEach((section) => main.appendChild(buildSection(section)));
 });
 main.hidden = true;
 
@@ -196,7 +201,7 @@ window.addEventListener('beforeunload', (event) => {
       ({ response, data } = await request());
     }
     if (!response.ok) throw new Error(data.error);
-    views.forEach((v) => { v.text = data.rules[v.section.id] || v.section.text; });
+    views.forEach((v) => { v.text = currentText(v.section, data.rules); });
     isAdmin = Boolean(adminKey);
     statusEl.textContent = isAdmin ? 'Admin mode: click Edit to change a section.' : '';
   } catch (error) {

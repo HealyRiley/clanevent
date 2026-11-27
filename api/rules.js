@@ -2,7 +2,7 @@
 const { redis, isAdmin } = require('./progress.js');
 
 const HASH = 'tile-rush:rules'; // one field per edited section
-const SECTIONS = ['row1', 'row2', 'row3', 'row4', 'row5', 'row6', 'general', 'event'];
+const SECTIONS = ['row1', 'row2', 'row3', 'row4', 'row5', 'row6', 'allgeneral'];
 
 async function readRules() {
   const flat = (await redis('HGETALL', HASH)) || [];
