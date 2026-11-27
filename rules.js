@@ -51,8 +51,8 @@ Requires 2 unique submissions from different categories of players to complete.`
 
 36. Obtain a megarare from any raid (no kodai/maul included)` },
   ] },
-  { heading: 'General Rules', oneBox: true, sections: [
-    { id: 'general', title: '', text: `* All clan rules must be followed
+  { heading: '', oneBox: true, sections: [
+    { id: 'general', title: 'General Rules', text: `* All clan rules must be followed
 * You may only participate on 1 account at any given time, irons are eligible to to swap to mains
 * Alting is not permitted at all` },
     { id: 'event', title: 'Event Rules', text: `* All teams must complete the board tile by tile in order starting from tile 1 ending at tile 36
@@ -170,7 +170,7 @@ function buildSection(section) {
 
 const main = document.getElementById('rules');
 GROUPS.forEach((group) => {
-  main.appendChild(make('h1', '', group.heading));
+  if (group.heading) main.appendChild(make('h1', '', group.heading));
   // Each part normally gets its own box, unless the group shares one
   const shared = group.oneBox ? main.appendChild(make('section')) : null;
   group.sections.forEach((section) => {
