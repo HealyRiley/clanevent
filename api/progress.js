@@ -1,5 +1,6 @@
 // Shared Tile Rush progress, stored in Redis (Upstash) through its REST API.
-// Anyone can read. Changes need the admin password: ADMIN_KEY, or the one set on the website.
+// Anyone can read, and anyone can add or remove a cross (in tile order). All other changes
+// need the admin password: ADMIN_KEY, or the one set on the website.
 const crypto = require('crypto');
 
 const HASH = 'tile-rush:progress'; // one 36-character string of 0s and 1s per team
@@ -106,9 +107,10 @@ module.exports = async (req, res) => {
     }
 
     if (req.method !== 'POST') return send(405, { error: 'Method not allowed.' });
-    if (!(await isAdmin(req))) return send(401, { error: 'That admin link is not valid.' });
-
     const { team, tile, crossed, reset, player, name, captain, title } = req.body || {};
+    // Only a plain tile change is open to everyone
+    const tileOnly = [reset, player, name, captain, title].every((v) => v === undefined);
+    if (!tileOnly && !(await isAdmin(req))) return send(401, { error: 'That admin link is not valid.' });
     if (!Number.isInteger(team) || team < 0 || team > 4) return send(400, { error: 'Unknown team.' });
 
     const isSlot = (v) => Number.isInteger(v) && v >= 0 && v <= 8;

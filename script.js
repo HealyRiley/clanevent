@@ -14,6 +14,7 @@ let busy = false; // true while a tile change is saving
 let pending = 0; // saves that haven't finished
 let queue = Promise.resolve(); // saves are sent one at a time, in order
 let version = 0; // goes up on every save, so older refreshes are ignored
+let lastSave = 0; // when this page last saved something
 let progress = TEAMS.map(() => '0'.repeat(36));
 let players = TEAMS.map(() => ({ title: '', names: Array(9).fill(''), captain: -1 }));
 
@@ -47,7 +48,7 @@ function render() {
   document.body.classList.toggle('admin', isAdmin);
   document.getElementById('intro').textContent = isAdmin
     ? 'Admin mode: click the next tile to cross it off, or click a red X to remove it. Type player names, and right-click a name to make that player captain.'
-    : "Follow each team's progress. This page updates automatically.";
+    : 'Click the next tile to cross it off, or click a red X to remove it. This page updates automatically.';
   loginForm.hidden = isAdmin;
   document.getElementById('password-area').hidden = !isAdmin;
   if (!isAdmin) closePasswordForm();
@@ -74,9 +75,9 @@ function render() {
     const next = state.indexOf('0') + 1; // the only unlocked tile (0 when all are done)
     tiles.forEach(({ el, number }) => {
       const crossed = state[number - 1] === '1';
-      const usable = isAdmin && !busy && (crossed || number === next);
+      const usable = loaded && !busy && (crossed || number === next);
       el.classList.toggle('crossed', crossed);
-      el.classList.toggle('next', isAdmin && !crossed && number === next);
+      el.classList.toggle('next', loaded && !crossed && number === next);
       el.disabled = !usable;
       const label = crossed ? 'crossed off' : number === next ? 'next tile' : 'locked';
       el.setAttribute('aria-label', teamName(t) + ', tile ' + number + ', ' + label);
@@ -95,7 +96,10 @@ async function request(body, key = adminKey) {
     options.headers['Content-Type'] = 'application/json';
     options.body = JSON.stringify(body);
   }
-  const response = await fetch('/api/progress', options);
+  // Viewers' updates are cached for a few seconds. Just after saving, skip the cache
+  // so an older copy can't briefly undo what was just clicked.
+  const fresh = !body && Date.now() - lastSave < 10000;
+  const response = await fetch('/api/progress' + (fresh ? '?fresh=' + Date.now() : ''), options);
   const data = await response.json().catch(() => ({}));
   return { response, data };
 }
@@ -154,6 +158,7 @@ function save(body, onSaved) {
     }
     pending--;
     version++;
+    lastSave = Date.now();
     render();
     return ok;
   });
