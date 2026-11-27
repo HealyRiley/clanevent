@@ -43,6 +43,7 @@ function render() {
       // Don't overwrite a name an admin is still typing or saving
       if (!input.dataset.dirty) input.value = players[t].names[i];
       input.readOnly = !isAdmin;
+      if (!isAdmin) input.blur();
       input.tabIndex = isAdmin ? 0 : -1;
       input.placeholder = isAdmin ? 'Player ' + (i + 1) : '';
       const captain = players[t].captain === i;

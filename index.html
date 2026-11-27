@@ -12,6 +12,8 @@
   .player input { box-sizing: border-box; width: 100%; height: 30px; padding: 2px 30px 2px 8px; background: #181b18; color: #fff; border: 1px solid #3a3f3a; border-radius: 4px; font: 16px 'RuneScape Plain 12', Arial, sans-serif; text-shadow: 1px 1px 0 #000; }
   .player input::placeholder { color: #777; }
   .admin .player input { border-color: #666; }
+  /* On the normal site, names can't be clicked, selected or focused */
+  body:not(.admin) .player { pointer-events: none; user-select: none; -webkit-user-select: none; }
   .player input:focus-visible { outline: 2px solid #e0b54a; }
   .player.captain input { color: #ffd700; border-color: #ffd700; }
   .crown { display: none; position: absolute; right: 8px; top: 8px; width: 18px; height: 14px; pointer-events: none; }
