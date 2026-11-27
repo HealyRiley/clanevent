@@ -39,6 +39,16 @@
   #login, #logout-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin: 0 0 24px; }
   #login input { background: #181b18; color: #eee; border: 1px solid #555; border-radius: 6px; padding: 7px 10px; font-size: 16px; }
   #login button, #logout { background: #222622; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+  /* RuneScape font for the headings, intro and password label */
+  h1, h2, .title-input, .intro, #login label { font-family: 'RuneScape Plain 12', Arial, sans-serif; font-weight: normal; }
+  h1, h2, .title-input { color: #ffff00; text-shadow: 2px 2px 0 #000; }
+  h1 { font-size: 48px; }
+  h2, .title-input { font-size: 32px; line-height: 1.2; }
+  h2 { min-width: 0; overflow-wrap: anywhere; margin-right: 8px; }
+  .intro, #login label { font-size: 16px; }
+  .title-input { flex: 1; min-width: 0; width: 100%; margin-right: 8px; padding: 0 6px; background: #181b18; border: 1px dashed #777; border-radius: 4px; }
+  .title-input:focus-visible { outline: 2px solid #e0b54a; }
+  header .count, header .reset { flex-shrink: 0; }
   [hidden] { display: none !important; }
   .tile svg { display: none; width: 100%; height: 100%; }
   .tile.crossed svg { display: block; }

@@ -4,7 +4,7 @@ const crypto = require('crypto');
 
 const HASH = 'tile-rush:progress'; // one 36-character string of 0s and 1s per team
 const EMPTY = '0'.repeat(36);
-// Player names are stored as "team:player" fields, and each captain as "team:captain"
+// Player names are stored as "team:player" fields, plus "team:captain" and "team:title" (custom team name)
 const PLAYERS = 'tile-rush:players';
 
 // A captain must have a name. -1 removes the captain.
@@ -55,10 +55,11 @@ async function readTeams() {
 
 async function readPlayers() {
   const flat = (await redis('HGETALL', PLAYERS)) || [];
-  const players = [0, 1, 2, 3, 4].map(() => ({ names: Array(9).fill(''), captain: -1 }));
+  const players = [0, 1, 2, 3, 4].map(() => ({ title: '', names: Array(9).fill(''), captain: -1 }));
   for (let i = 0; i < flat.length; i += 2) {
     const [team, slot] = String(flat[i]).split(':');
-    if (slot === 'captain') players[team].captain = Number(flat[i + 1]);
+    if (slot === 'title') players[team].title = String(flat[i + 1]);
+    else if (slot === 'captain') players[team].captain = Number(flat[i + 1]);
     else players[team].names[slot] = String(flat[i + 1]);
   }
   return players;
@@ -95,12 +96,19 @@ module.exports = async (req, res) => {
     if (req.method !== 'POST') return send(405, { error: 'Method not allowed.' });
     if (!isAdmin(req)) return send(401, { error: 'That admin link is not valid.' });
 
-    const { team, tile, crossed, reset, player, name, captain } = req.body || {};
+    const { team, tile, crossed, reset, player, name, captain, title } = req.body || {};
     if (!Number.isInteger(team) || team < 0 || team > 4) return send(400, { error: 'Unknown team.' });
 
     const isSlot = (v) => Number.isInteger(v) && v >= 0 && v <= 8;
 
-    if (player !== undefined) {
+    if (title !== undefined) {
+      if (typeof title !== 'string' || title.trim().length > 20) {
+        return send(400, { error: 'Team names can be up to 20 characters.' });
+      }
+      // A blank name goes back to the default
+      if (title.trim()) await redis('HSET', PLAYERS, team + ':title', title.trim());
+      else await redis('HDEL', PLAYERS, team + ':title');
+    } else if (player !== undefined) {
       if (!isSlot(player) || typeof name !== 'string' || name.trim().length > 12) {
         return send(400, { error: 'Names can be up to 12 characters.' });
       }

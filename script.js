@@ -15,10 +15,12 @@ let pending = 0; // saves that haven't finished
 let queue = Promise.resolve(); // saves are sent one at a time, in order
 let version = 0; // goes up on every save, so older refreshes are ignored
 let progress = TEAMS.map(() => '0'.repeat(36));
-let players = TEAMS.map(() => ({ names: Array(9).fill(''), captain: -1 }));
+let players = TEAMS.map(() => ({ title: '', names: Array(9).fill(''), captain: -1 }));
 
 const statusEl = document.getElementById('status');
 const boards = [];
+// Admins can rename teams. Until they do, the default from TEAMS is shown.
+const teamName = (t) => players[t].title || TEAMS[t];
 const loginForm = document.getElementById('login');
 const passwordInput = document.getElementById('password');
 
@@ -38,7 +40,12 @@ function render() {
   loginForm.hidden = isAdmin;
   document.getElementById('logout-row').hidden = !isAdmin;
 
-  boards.forEach(({ tiles, inputs, count, reset }, t) => {
+  boards.forEach(({ heading, titleInput, tiles, inputs, count, reset }, t) => {
+    // Viewers see a plain heading; admins see an editable box in its place
+    heading.textContent = teamName(t);
+    heading.hidden = isAdmin;
+    titleInput.hidden = !isAdmin;
+    if (!titleInput.dataset.dirty) titleInput.value = teamName(t);
     inputs.forEach((input, i) => {
       // Don't overwrite a name an admin is still typing or saving
       if (!input.dataset.dirty) input.value = players[t].names[i];
@@ -48,7 +55,7 @@ function render() {
       input.placeholder = isAdmin ? 'Player ' + (i + 1) : '';
       const captain = players[t].captain === i;
       input.parentElement.classList.toggle('captain', captain);
-      input.setAttribute('aria-label', TEAMS[t] + ', player ' + (i + 1) + (captain ? ', captain' : ''));
+      input.setAttribute('aria-label', teamName(t) + ', player ' + (i + 1) + (captain ? ', captain' : ''));
     });
     const state = progress[t];
     const next = state.indexOf('0') + 1; // the only unlocked tile (0 when all are done)
@@ -59,7 +66,7 @@ function render() {
       el.classList.toggle('next', isAdmin && !crossed && number === next);
       el.disabled = !usable;
       const label = crossed ? 'crossed off' : number === next ? 'next tile' : 'locked';
-      el.setAttribute('aria-label', TEAMS[t] + ', tile ' + number + ', ' + label);
+      el.setAttribute('aria-label', teamName(t) + ', tile ' + number + ', ' + label);
     });
     count.textContent = loaded ? state.split('1').length - 1 + ' / 36' : '';
     reset.hidden = !isAdmin;
@@ -148,11 +155,12 @@ async function change(body) {
   render();
 }
 
-function saveName(t, i, input) {
+// Saves a text box (team name or player name) if it has been edited
+function saveText(input, body) {
   if (!isAdmin || !input.dataset.dirty || input.dataset.saving === input.value) return;
   const typed = input.value;
   input.dataset.saving = typed;
-  save({ team: t, player: i, name: typed }, () => {
+  save({ ...body, [body.player === undefined ? 'title' : 'name']: typed }, () => {
     if (input.value === typed) delete input.dataset.dirty;
   }).then(() => {
     if (input.dataset.saving === typed) delete input.dataset.saving;
@@ -162,15 +170,22 @@ function saveName(t, i, input) {
 function logOut() {
   forgetAdmin();
   // Throw away anything typed but not saved
-  boards.forEach(({ inputs }) => inputs.forEach((input) => delete input.dataset.dirty));
+  boards.forEach(({ titleInput, inputs }) => [titleInput, ...inputs].forEach((input) => delete input.dataset.dirty));
 }
 
 TEAMS.forEach((name, t) => {
   const section = document.createElement('section');
-  section.innerHTML = '<header><h2></h2><span class="count"></span><button type="button" class="reset" hidden>Reset</button></header>' +
+  section.innerHTML = '<header><h2></h2><input type="text" class="title-input" maxlength="20" autocomplete="off" spellcheck="false" hidden><span class="count"></span><button type="button" class="reset" hidden>Reset</button></header>' +
     '<div class="players"></div>' +
     '<div class="board"><img src="tiles.png" width="657" height="657" alt="Tile Rush board"></div>';
-  section.querySelector('h2').textContent = name;
+  const heading = section.querySelector('h2');
+  const titleInput = section.querySelector('.title-input');
+  titleInput.setAttribute('aria-label', 'Name for ' + name);
+  titleInput.addEventListener('input', () => { titleInput.dataset.dirty = '1'; });
+  titleInput.addEventListener('blur', () => saveText(titleInput, { team: t }));
+  titleInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') saveText(titleInput, { team: t });
+  });
   const board = section.querySelector('.board');
   const tiles = [];
   const inputs = [];
@@ -181,9 +196,9 @@ TEAMS.forEach((name, t) => {
     wrap.innerHTML = '<input type="text" maxlength="12" autocomplete="off" spellcheck="false">' + CROWN;
     const input = wrap.querySelector('input');
     input.addEventListener('input', () => { input.dataset.dirty = '1'; });
-    input.addEventListener('blur', () => saveName(t, i, input));
+    input.addEventListener('blur', () => saveText(input, { team: t, player: i }));
     input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') saveName(t, i, input);
+      if (event.key === 'Enter') saveText(input, { team: t, player: i });
     });
     // Right-click makes this player the captain. Right-click the captain again to remove it.
     input.addEventListener('contextmenu', (event) => {
@@ -193,7 +208,7 @@ TEAMS.forEach((name, t) => {
         statusEl.textContent = 'Type a name before making that player captain.';
         return;
       }
-      saveName(t, i, input); // save a freshly typed name first
+      saveText(input, { team: t, player: i }); // save a freshly typed name first
       save({ team: t, captain: players[t].captain === i ? -1 : i });
     });
     inputs.push(input);
@@ -222,9 +237,9 @@ TEAMS.forEach((name, t) => {
 
   const reset = section.querySelector('.reset');
   reset.addEventListener('click', () => {
-    if (confirm('Clear all crosses for ' + name + '?')) change({ team: t, reset: true });
+    if (confirm('Clear all crosses for ' + teamName(t) + '?')) change({ team: t, reset: true });
   });
-  boards.push({ tiles, inputs, count: section.querySelector('.count'), reset });
+  boards.push({ heading, titleInput, tiles, inputs, count: section.querySelector('.count'), reset });
   document.getElementById('teams').appendChild(section);
 });
 
