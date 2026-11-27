@@ -34,7 +34,12 @@
   .tile:enabled { cursor: pointer; }
   .tile:disabled { cursor: not-allowed; }
   .tile.next { outline: 3px dashed #e0b54a; }
-  .tile:enabled:hover, .tile:enabled:focus-visible { outline: 3px solid #e0b54a; }
+  .tile:enabled:not([aria-disabled="true"]):hover, .tile:enabled:focus-visible { outline: 3px solid #e0b54a; }
+  /* Tile 6 can always be right-clicked, even while it's locked */
+  .tile[aria-disabled="true"] { cursor: context-menu; }
+  .barrows-hint { display: flex; justify-content: flex-end; align-items: flex-start; gap: 4px; padding-right: 7%; margin-top: 2px; }
+  .barrows-hint a { align-self: flex-end; color: #ffff00; font: 16px/1.2 'RuneScape Plain 12', Arial, sans-serif; text-shadow: 1px 1px 0 #000; text-align: right; text-decoration: none; }
+  .barrows-hint svg { flex-shrink: 0; width: 60px; height: 40px; }
   #status { text-align: center; color: #ffb4a8; min-height: 1.4em; margin: 0 0 16px; }
   #login, #logout-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin: 0 0 24px; }
   #login input { background: #181b18; color: #eee; border: 1px solid #555; border-radius: 6px; padding: 7px 10px; font-size: 16px; }
