@@ -51,9 +51,9 @@ Requires 2 unique submissions from different categories of players to complete.`
 
 36. Obtain a megarare from any raid (no kodai/maul included)` },
   ] },
-  { heading: '', sections: [
+  { heading: 'General Rules', sections: [
     // "parts" are the two lists this used to be, so edits saved to either one still show
-    { id: 'allgeneral', title: 'General Rules', parts: [
+    { id: 'allgeneral', title: '', parts: [
       { id: 'general', text: `* All clan rules must be followed
 * You may only participate on 1 account at any given time, irons are eligible to to swap to mains
 * Alting is not permitted at all` },
