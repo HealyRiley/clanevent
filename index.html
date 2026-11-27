@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tile Rush</title>
 <style>
+  /* Old School RuneScape "Plain 12", built from the CC0 data at github.com/RuneStar/fonts */
+  @font-face { font-family: 'RuneScape Plain 12'; src: url('fonts/runescape-plain-12.ttf') format('truetype'); font-display: swap; }
+  .players { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+  .player { position: relative; min-width: 0; }
+  .player input { box-sizing: border-box; width: 100%; height: 30px; padding: 2px 30px 2px 8px; background: #181b18; color: #fff; border: 1px solid #3a3f3a; border-radius: 4px; font: 16px 'RuneScape Plain 12', Arial, sans-serif; text-shadow: 1px 1px 0 #000; }
+  .player input::placeholder { color: #777; }
+  .admin .player input { border-color: #666; }
+  .player input:focus-visible { outline: 2px solid #e0b54a; }
+  .player.captain input { color: #ffd700; border-color: #ffd700; }
+  .crown { display: none; position: absolute; right: 8px; top: 8px; width: 18px; height: 14px; pointer-events: none; }
+  .player.captain .crown { display: block; }
   body { margin: 0; padding: 24px 16px; background: #0f110f; color: #eee; font-family: system-ui, sans-serif; }
   h1 { text-align: center; color: #e0b54a; margin: 0 0 4px; }
   .intro { text-align: center; color: #aaa; margin: 0 0 24px; }

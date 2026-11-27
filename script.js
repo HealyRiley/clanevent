@@ -1,5 +1,6 @@
 const TEAMS = ['Team 1', 'Team 2', 'Team 3', 'Team 4', 'Team 5'];
 const REFRESH_MS = 15000;
+const CROWN = '<svg class="crown" viewBox="0 0 18 14" role="img" aria-label="Team captain"><path d="M1 3 5 7 9 1 13 7 17 3 15 13H3Z" fill="#ffd700" stroke="#6b5200"/></svg>';
 const X = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M15 15 85 85M85 15 15 85" stroke="#e11d1d" stroke-width="11" stroke-linecap="round"/></svg>';
 
 // Admins can use the password box, or a link like https://your-site/#admin=YOUR_KEY
@@ -9,9 +10,12 @@ let adminKey = new URLSearchParams(location.hash.slice(1)).get('admin');
 try { adminKey = adminKey || sessionStorage.getItem(SESSION_KEY); } catch (e) {}
 let isAdmin = false; // only true once the server accepts the key
 let loaded = false;
-let busy = false;
+let busy = false; // true while a tile change is saving
+let pending = 0; // saves that haven't finished
+let queue = Promise.resolve(); // saves are sent one at a time, in order
 let version = 0; // goes up on every save, so older refreshes are ignored
 let progress = TEAMS.map(() => '0'.repeat(36));
+let players = TEAMS.map(() => ({ names: Array(9).fill(''), captain: -1 }));
 
 const statusEl = document.getElementById('status');
 const boards = [];
@@ -29,12 +33,22 @@ function forgetAdmin() {
 function render() {
   document.body.classList.toggle('admin', isAdmin);
   document.getElementById('intro').textContent = isAdmin
-    ? 'Admin mode: click the next tile to cross it off. Click a red X to remove it.'
+    ? 'Admin mode: click the next tile to cross it off, or click a red X to remove it. Type player names, and right-click a name to make that player captain.'
     : "Follow each team's progress. This page updates automatically.";
   loginForm.hidden = isAdmin;
   document.getElementById('logout-row').hidden = !isAdmin;
 
-  boards.forEach(({ tiles, count, reset }, t) => {
+  boards.forEach(({ tiles, inputs, count, reset }, t) => {
+    inputs.forEach((input, i) => {
+      // Don't overwrite a name an admin is still typing or saving
+      if (!input.dataset.dirty) input.value = players[t].names[i];
+      input.readOnly = !isAdmin;
+      input.tabIndex = isAdmin ? 0 : -1;
+      input.placeholder = isAdmin ? 'Player ' + (i + 1) : '';
+      const captain = players[t].captain === i;
+      input.parentElement.classList.toggle('captain', captain);
+      input.setAttribute('aria-label', TEAMS[t] + ', player ' + (i + 1) + (captain ? ', captain' : ''));
+    });
     const state = progress[t];
     const next = state.indexOf('0') + 1; // the only unlocked tile (0 when all are done)
     tiles.forEach(({ el, number }) => {
@@ -66,20 +80,20 @@ async function request(body, key = adminKey) {
 }
 
 async function refresh() {
-  if (busy) return;
+  if (pending) return;
   const startedAt = version;
   try {
     const { response, data } = await request();
     if (startedAt !== version) return;
     if (response.status === 401) {
-      forgetAdmin();
+      logOut();
       await refresh();
       statusEl.dataset.type = 'login';
       statusEl.textContent = 'The admin password is not valid, so this page is view only.';
       return;
     }
     if (!response.ok) throw new Error(data.error);
-    progress = data.teams;
+    applyData(data);
     loaded = true;
     isAdmin = Boolean(adminKey);
     if (statusEl.dataset.type === 'connection') statusEl.textContent = '';
@@ -90,32 +104,100 @@ async function refresh() {
   render();
 }
 
+function applyData(data) {
+  if (data.teams) progress = data.teams;
+  if (data.players) players = data.players;
+}
+
+// Sends one change to the server. Returns true if it was saved.
+function save(body, onSaved) {
+  pending++;
+  version++;
+  const key = adminKey;
+  const result = queue.then(async () => {
+    statusEl.dataset.type = 'save';
+    statusEl.textContent = 'Saving…';
+    let ok = false;
+    try {
+      const { response, data } = await request(body, key);
+      applyData(data);
+      if (response.status === 401) logOut();
+      if (!response.ok) throw new Error(data.error);
+      ok = true;
+      if (onSaved) onSaved();
+      statusEl.textContent = '';
+    } catch (error) {
+      statusEl.textContent = 'Not saved. ' + (error.message || 'Check your connection and try again.');
+    }
+    pending--;
+    version++;
+    render();
+    return ok;
+  });
+  queue = result;
+  return result;
+}
+
 async function change(body) {
   busy = true;
-  version++;
-  statusEl.dataset.type = 'save';
-  statusEl.textContent = 'Saving…';
+  const saved = save(body);
   render();
-  try {
-    const { response, data } = await request(body);
-    if (data.teams) progress = data.teams;
-    if (response.status === 401) forgetAdmin();
-    if (!response.ok) throw new Error(data.error);
-    statusEl.textContent = '';
-  } catch (error) {
-    statusEl.textContent = 'Not saved. ' + (error.message || 'Check your connection and try again.');
-  }
+  await saved;
   busy = false;
   render();
+}
+
+function saveName(t, i, input) {
+  if (!isAdmin || !input.dataset.dirty || input.dataset.saving === input.value) return;
+  const typed = input.value;
+  input.dataset.saving = typed;
+  save({ team: t, player: i, name: typed }, () => {
+    if (input.value === typed) delete input.dataset.dirty;
+  }).then(() => {
+    if (input.dataset.saving === typed) delete input.dataset.saving;
+  });
+}
+
+function logOut() {
+  forgetAdmin();
+  // Throw away anything typed but not saved
+  boards.forEach(({ inputs }) => inputs.forEach((input) => delete input.dataset.dirty));
 }
 
 TEAMS.forEach((name, t) => {
   const section = document.createElement('section');
   section.innerHTML = '<header><h2></h2><span class="count"></span><button type="button" class="reset" hidden>Reset</button></header>' +
+    '<div class="players"></div>' +
     '<div class="board"><img src="tiles.png" width="657" height="657" alt="Tile Rush board"></div>';
   section.querySelector('h2').textContent = name;
   const board = section.querySelector('.board');
   const tiles = [];
+  const inputs = [];
+
+  for (let i = 0; i < 9; i++) {
+    const wrap = document.createElement('div');
+    wrap.className = 'player';
+    wrap.innerHTML = '<input type="text" maxlength="12" autocomplete="off" spellcheck="false">' + CROWN;
+    const input = wrap.querySelector('input');
+    input.addEventListener('input', () => { input.dataset.dirty = '1'; });
+    input.addEventListener('blur', () => saveName(t, i, input));
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') saveName(t, i, input);
+    });
+    // Right-click makes this player the captain. Right-click the captain again to remove it.
+    input.addEventListener('contextmenu', (event) => {
+      if (!isAdmin) return;
+      event.preventDefault();
+      if (!input.value.trim()) {
+        statusEl.textContent = 'Type a name before making that player captain.';
+        return;
+      }
+      saveName(t, i, input); // save a freshly typed name first
+      save({ team: t, captain: players[t].captain === i ? -1 : i });
+    });
+    inputs.push(input);
+    section.querySelector('.players').appendChild(wrap);
+  }
 
   // The board runs from tile 36 (top left) down to tile 1 (bottom left)
   for (let row = 0; row < 6; row++) {
@@ -141,7 +223,7 @@ TEAMS.forEach((name, t) => {
   reset.addEventListener('click', () => {
     if (confirm('Clear all crosses for ' + name + '?')) change({ team: t, reset: true });
   });
-  boards.push({ tiles, count: section.querySelector('.count'), reset });
+  boards.push({ tiles, inputs, count: section.querySelector('.count'), reset });
   document.getElementById('teams').appendChild(section);
 });
 
@@ -163,7 +245,7 @@ loginForm.addEventListener('submit', async (event) => {
       try { sessionStorage.setItem(SESSION_KEY, adminKey); } catch (e) {}
       isAdmin = true;
       loaded = true;
-      progress = data.teams;
+      applyData(data);
       passwordInput.value = '';
       statusEl.textContent = '';
       render();
@@ -176,7 +258,7 @@ loginForm.addEventListener('submit', async (event) => {
 
 document.getElementById('logout').addEventListener('click', () => {
   version++;
-  forgetAdmin();
+  logOut();
   statusEl.textContent = '';
   render();
   refresh();
