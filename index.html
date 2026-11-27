@@ -35,7 +35,7 @@
   .admin .tile:disabled { cursor: not-allowed; }
   .tile.next { outline: 3px dashed #e0b54a; }
   .tile:enabled:hover, .tile:enabled:focus-visible { outline: 3px solid #e0b54a; }
-  #status { text-align: center; color: #ffb4a8; min-height: 1.4em; margin: -16px 0 16px; }
+  #status { text-align: center; color: #ffb4a8; min-height: 1.4em; margin: 0 0 16px; }
   #login, #logout-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin: 0 0 24px; }
   #login input { background: #181b18; color: #eee; border: 1px solid #555; border-radius: 6px; padding: 7px 10px; font-size: 16px; }
   #login button, #logout { background: #222622; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
@@ -49,12 +49,24 @@
   .title-input { flex: 1; min-width: 0; width: 100%; margin-right: 8px; padding: 0 6px; background: #181b18; border: 1px dashed #777; border-radius: 4px; }
   .title-input:focus-visible { outline: 2px solid #e0b54a; }
   header .count, header .reset { flex-shrink: 0; }
+  /* Title and login stay centred, with the rules button to their right */
+  .top { display: grid; grid-template-columns: 1fr minmax(0, 560px) 1fr; align-items: center; gap: 16px; }
+  .top-main { grid-column: 2; }
+  .rules-button { grid-column: 3; justify-self: start; font: 32px 'RuneScape Plain 12', Arial, sans-serif; background: #ffff00; color: #111; border: 3px solid #b8860b; border-radius: 8px; padding: 14px 24px; text-decoration: none; white-space: nowrap; box-shadow: 0 4px 0 #6b5200; }
+  .rules-button:hover, .rules-button:focus-visible { background: #fff; }
+  @media (max-width: 1000px) {
+    .top { grid-template-columns: minmax(0, 1fr); }
+    .top-main, .rules-button { grid-column: 1; }
+    .rules-button { justify-self: center; margin-bottom: 28px; }
+  }
   [hidden] { display: none !important; }
   .tile svg { display: none; width: 100%; height: 100%; }
   .tile.crossed svg { display: block; }
 </style>
 </head>
 <body>
+<div class="top">
+<div class="top-main">
 <h1>Tile Rush</h1>
 <p class="intro" id="intro">Loading…</p>
 <form id="login">
@@ -63,6 +75,9 @@
   <button type="submit">Log in</button>
 </form>
 <div id="logout-row" hidden><button type="button" id="logout">Log out of admin</button></div>
+</div>
+<a class="rules-button" href="rules.html">Event Rules</a>
+</div>
 <p id="status" role="status"></p>
 <main id="teams"></main>
 <script src="script.js"></script>

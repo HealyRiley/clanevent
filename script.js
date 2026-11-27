@@ -104,6 +104,8 @@ async function refresh() {
     applyData(data);
     loaded = true;
     isAdmin = Boolean(adminKey);
+    // Remember an admin link too, so the rules page also opens in admin mode
+    if (isAdmin) { try { sessionStorage.setItem(SESSION_KEY, adminKey); } catch (e) {} }
     if (statusEl.dataset.type === 'connection') statusEl.textContent = '';
   } catch (error) {
     statusEl.dataset.type = 'connection';

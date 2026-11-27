@@ -132,3 +132,7 @@ module.exports = async (req, res) => {
     return send(500, { error: error.message });
   }
 };
+
+// Shared with api/rules.js
+module.exports.redis = redis;
+module.exports.isAdmin = isAdmin;
