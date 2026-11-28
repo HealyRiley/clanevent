@@ -35,11 +35,10 @@
   .tile:disabled { cursor: not-allowed; }
   .tile.next { outline: 3px dashed #e0b54a; }
   .tile:enabled:not([aria-disabled="true"]):hover, .tile:enabled:focus-visible { outline: 3px solid #e0b54a; }
-  /* Tile 6 can always be right-clicked, even while it's locked */
+  /* Expandable tiles can always be right-clicked, even while they're locked */
   .tile[aria-disabled="true"] { cursor: context-menu; }
-  .barrows-hint { display: flex; justify-content: flex-end; align-items: flex-start; gap: 4px; padding-right: 7%; margin-top: 2px; }
-  .barrows-hint a { align-self: flex-end; color: #ffff00; font: 16px/1.2 'RuneScape Plain 12', Arial, sans-serif; text-shadow: 1px 1px 0 #000; text-align: right; text-decoration: none; }
-  .barrows-hint svg { flex-shrink: 0; width: 60px; height: 40px; }
+  .expand-hint { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin: 6px 3% 0 0; color: #ffff00; font: 16px/1.2 'RuneScape Plain 12', Arial, sans-serif; text-shadow: 1px 1px 0 #000; text-align: right; }
+  .expand-hint .expand-icon { flex-shrink: 0; width: 22px; height: 22px; }
   #status { text-align: center; color: #ffb4a8; min-height: 1.4em; margin: 0 0 16px; }
   #login, #logout-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin: 0 0 24px; }
   #login input { background: #181b18; color: #eee; border: 1px solid #555; border-radius: 6px; padding: 7px 10px; font-size: 16px; }
@@ -72,8 +71,12 @@
   #password-status { margin: 0; text-align: center; min-height: 1.4em; color: #ffb4a8; }
   #password-status.ok { color: #9be29b; }
   [hidden] { display: none !important; }
-  .tile svg { display: none; width: 100%; height: 100%; }
-  .tile.crossed svg { display: block; }
+  .tile .cross { display: none; width: 100%; height: 100%; }
+  .tile.crossed .cross { display: block; }
+  .expand-icon { background: #111; border: 1px solid #ffff00; border-radius: 4px; }
+  .tile .expand-icon { position: absolute; top: 3%; right: 3%; width: 24%; height: 24%; box-sizing: border-box; pointer-events: none; }
+  /* Stops phones showing their own menu when a tile is held down */
+  .tile.expandable { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 </style>
 </head>
 <body>
@@ -102,6 +105,7 @@
     <p id="password-status" role="status"></p>
   </form>
 </div>
+<script src="logs-data.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

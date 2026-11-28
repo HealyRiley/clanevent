@@ -1,9 +1,9 @@
 const TEAMS = ['Team 1', 'Team 2', 'Team 3', 'Team 4', 'Team 5'];
 const REFRESH_MS = 15000;
-// The little note and curved arrow under tile 6
-const HINT_ARROW = '<svg viewBox="0 0 60 40" aria-hidden="true" fill="none" stroke="#ffff00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 31C25 37 45 27 44 5"/><path d="M37 12 44 4 51 12"/></svg>';
+// Marks tiles that open an item log: arrows pointing out to two corners
+const EXPAND = '<svg class="expand-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#ffff00" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 5h6v6M19 5l-5.5 5.5M11 19H5v-6M5 19l5.5-5.5"/></svg>';
 const CROWN = '<svg class="crown" viewBox="0 0 18 14" role="img" aria-label="Team captain"><path d="M1 3 5 7 9 1 13 7 17 3 15 13H3Z" fill="#ffd700" stroke="#6b5200"/></svg>';
-const X = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M15 15 85 85M85 15 15 85" stroke="#e11d1d" stroke-width="11" stroke-linecap="round"/></svg>';
+const X = '<svg class="cross" viewBox="0 0 100 100" aria-hidden="true"><path d="M15 15 85 85M85 15 15 85" stroke="#e11d1d" stroke-width="11" stroke-linecap="round"/></svg>';
 
 // Admins can use the password box, or a link like https://your-site/#admin=YOUR_KEY
 // A password typed into the box is remembered only until this browser tab is closed
@@ -80,8 +80,8 @@ function render() {
       const usable = loaded && !busy && (crossed || number === next);
       el.classList.toggle('crossed', crossed);
       el.classList.toggle('next', loaded && !crossed && number === next);
-      if (number === 6) {
-        // A disabled button can't be right-clicked, so tile 6 is only marked as locked
+      if (el.classList.contains('expandable')) {
+        // A disabled button can't be right-clicked, so these tiles are only marked as locked
         el.disabled = false;
         el.setAttribute('aria-disabled', !usable);
       } else {
@@ -256,16 +256,30 @@ TEAMS.forEach((name, t) => {
       el.style.left = (17 + col * 103.8) / 6.57 + '%';
       el.style.top = (18 + row * 103.8) / 6.57 + '%';
       el.innerHTML = X;
+      let held = false; // true after a long press, so it doesn't also count as a tap
       el.addEventListener('click', () => {
+        if (held) { held = false; return; }
         if (el.getAttribute('aria-disabled') === 'true') return;
         change({ team: t, tile: number, crossed: progress[t][number - 1] !== '1' });
       });
-      if (number === 6) {
-        el.title = 'Right-click to open the barrows log';
+      if (Object.hasOwn(LOGS, number)) {
+        el.classList.add('expandable');
+        el.insertAdjacentHTML('beforeend', EXPAND);
+        el.title = 'Right-click to open the ' + LOGS[number].name + ' log';
+        const open = () => { location.href = 'log.html?tile=' + number + '&team=' + (t + 1); };
         el.addEventListener('contextmenu', (event) => {
           event.preventDefault();
-          location.href = 'barrows.html?team=' + (t + 1);
+          open();
         });
+        // Press and hold also works, for phones that can't right-click
+        let timer;
+        const cancel = () => clearTimeout(timer);
+        el.addEventListener('touchstart', () => {
+          held = false;
+          cancel();
+          timer = setTimeout(() => { held = true; open(); }, 600);
+        }, { passive: true });
+        ['touchend', 'touchmove', 'touchcancel'].forEach((type) => el.addEventListener(type, cancel, { passive: true }));
       }
       tiles.push({ el, number });
       board.appendChild(el);
@@ -273,9 +287,8 @@ TEAMS.forEach((name, t) => {
   }
 
   const hint = document.createElement('div');
-  hint.className = 'barrows-hint';
-  // The note is also a link, for phones that can't right-click
-  hint.innerHTML = '<a href="barrows.html?team=' + (t + 1) + '">right click me to open the barrows log!</a>' + HINT_ARROW;
+  hint.className = 'expand-hint';
+  hint.innerHTML = EXPAND + '<span>right click any tile with this icon to expand!</span>';
   section.appendChild(hint);
 
   const reset = section.querySelector('.reset');
